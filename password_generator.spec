@@ -35,7 +35,7 @@ exe = EXE(
     argv_emulation=True,
     target_arch=None,
     codesign_identity=None,
-    entitlements_file=None,
+    entitlements_file="entitlements.plist",  # Entitlements dosyasını belirtin
     icon='assets/icon.icns'
 )
 
@@ -58,20 +58,6 @@ app = BUNDLE(
     info_plist={
         'CFBundleShortVersionString': '1.0.0',
         'CFBundleVersion': '1.0.0',
-        'NSHighResolutionCapable': 'True'
+        'NSHighResolutionCapable': 'True',
     },
 )
-
-
-create-dmg \
-  --volname "Password Demon" \
-  --volicon "assets/icon.icns" \
-  --window-pos 200 120 \
-  --window-size 600 300 \
-  --icon-size 100 \
-  --icon "Password Demon.app" 175 120 \
-  --hide-extension "Password Demon.app" \
-  --app-drop-link 425 120 \
-  "Password Demon.dmg" \
-  "dist/Password Demon.app"
-

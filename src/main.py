@@ -1,19 +1,26 @@
 import sys
 import os
+import random
+import string
+import stat
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QLabel, QLineEdit, QPushButton, QMessageBox, QTableWidget,
                            QTableWidgetItem, QHeaderView)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon, QPixmap
-import random
-import string
+from cryptography.fernet import Fernet
+
 
 class PasswordViewer(QMainWindow):
     """Kaydedilmiş şifreleri görüntülemek için kullanılan pencere sınıfı"""
-    def __init__(self):
+    def __init__(self, password_file_path, cipher):
         super().__init__()
         self.setWindowTitle("Kayıtlı Şifreler")
         self.setFixedSize(600, 400)
+        
+         # Şifre dosyasının yolu
+        self.password_file_path = password_file_path
+        self.cipher = cipher
         
         # Ana widget ve layout
         central_widget = QWidget()
@@ -68,10 +75,17 @@ class PasswordViewer(QMainWindow):
             self.table.setColumnWidth(2, 40)
             self.table.setColumnWidth(3, 40)
             
-            with open('passwords.txt', 'r', encoding='utf-8') as f:
+            with open(self.password_file_path, 'r', encoding='utf-8') as f:
                 for line in f:
                     if ':' in line:
-                        name, password = line.strip().split(':', 1)
+                        name, encrypted_password = line.strip().split(':', 1)
+                        
+                        # Şifreyi çöz
+                        try:
+                            decrypted_password = self.cipher.decrypt(encrypted_password.encode('utf-8')).decode('utf-8')
+                        except Exception as e:
+                            decrypted_password = "[HATA: Çözülemiyor]"
+                        
                         row_position = self.table.rowCount()
                         self.table.insertRow(row_position)
                         
@@ -79,8 +93,8 @@ class PasswordViewer(QMainWindow):
                         self.table.setItem(row_position, 0, QTableWidgetItem(name))
                         
                         # Şifre (gizli)
-                        password_item = QTableWidgetItem('*' * len(password))
-                        password_item.setData(Qt.ItemDataRole.UserRole, password)
+                        password_item = QTableWidgetItem('*' * len(decrypted_password))
+                        password_item.setData(Qt.ItemDataRole.UserRole, decrypted_password)
                         self.table.setItem(row_position, 1, password_item)
                         
                         # Göster/Gizle butonu
@@ -200,9 +214,9 @@ class PasswordViewer(QMainWindow):
                 if name_item:
                     name = name_item.text()
                     # Dosyadan şifreyi sil
-                    with open('passwords.txt', 'r', encoding='utf-8') as f:
+                    with open(self.password_file_path, 'r', encoding='utf-8') as f:
                         lines = f.readlines()
-                    with open('passwords.txt', 'w', encoding='utf-8') as f:
+                    with open(self.password_file_path, 'w', encoding='utf-8') as f:
                         for line in lines:
                             if not line.startswith(f"{name}:"):
                                 f.write(line)
@@ -286,10 +300,23 @@ class PasswordGenerator(QMainWindow):
         
         # Boşluk ekleme
         layout.addStretch()
+        
+         # Şifreleme anahtarının yolu
+        self.key_file_path = os.path.expanduser("~/Library/Containers/com.passworddemon.passwordgenerator/Data/key.key")
+        self.setup_encryption_key()
+        
+        # Şifreleme motoru
+        with open(self.key_file_path, 'rb') as key_file:
+            self.cipher = Fernet(key_file.read())
+        
+        # Dosya yolunu belirleme (macOS sandbox uyumlu)
+        self.app_data_path = os.path.expanduser("~/Library/Containers/com.passworddemon.passwordgenerator/Data")
+        os.makedirs(self.app_data_path, exist_ok=True)
+        self.password_file_path = os.path.join(self.app_data_path, "passwords.txt")
 
     def show_password_viewer(self):
         """Şifre görüntüleyici penceresini açar"""
-        self.password_viewer = PasswordViewer()
+        self.password_viewer = PasswordViewer(self.password_file_path, self.cipher)
         self.password_viewer.show()
 
     def calculate_remaining_length(self, total_length, letter_count, number_count, special_count):
@@ -370,7 +397,16 @@ class PasswordGenerator(QMainWindow):
             QMessageBox.warning(self, "Hata", str(e))
         except Exception as e:
             QMessageBox.warning(self, "Hata", "Lütfen geçerli sayısal değerler girin.")
-
+    
+    def setup_encryption_key(self):
+        """Şifreleme için gerekli anahtarı oluşturur ve güvenli bir şekilde saklar."""
+        if not os.path.exists(self.key_file_path):
+            os.makedirs(os.path.dirname(self.key_file_path), exist_ok=True)
+            with open(self.key_file_path, 'wb') as key_file:
+                key_file.write(Fernet.generate_key())
+            # Dosya izinlerini sadece kullanıcıya özel yap
+            os.chmod(self.key_file_path, stat.S_IRUSR | stat.S_IWUSR)
+            
     def ask_to_save(self, password):
         # Şifre ismi boş ise uyarı ver
         password_name = self.password_name_input.text().strip()
@@ -389,12 +425,13 @@ class PasswordGenerator(QMainWindow):
         
         if reply == QMessageBox.StandardButton.Yes:
             try:
-                with open('passwords.txt', 'a', encoding='utf-8') as f:
-                    # Şifre ismini ve şifreyi kaydet
-                    save_line = f"{password_name}:{password}\n" if password_name else f"Adsız:{password}\n"
+                with open(self.password_file_path, 'a', encoding='utf-8') as f:
+                    # Şifreyi şifrele ve dosyaya yaz
+                    encrypted_password = self.cipher.encrypt(password.encode('utf-8'))
+                    save_line = f"{password_name}:{encrypted_password.decode('utf-8')}\n" if password_name else f"Adsız:{encrypted_password.decode('utf-8')}\n"
                     f.write(save_line)
-                QMessageBox.information(self, "Başarılı", "Şifre kaydedildi!")
-                
+                QMessageBox.information(self, "Başarılı", f"Şifre kaydedildi! 🎉\n\nKaydedilen dosya yolu:\n{self.password_file_path}")
+                print(f"Dosya yolu: {self.password_file_path}")
                 # Başarılı kayıttan sonra şifre ismi alanını temizle
                 self.password_name_input.clear()
             except Exception as e:
