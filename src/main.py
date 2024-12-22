@@ -9,13 +9,17 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon, QPixmap
 from cryptography.fernet import Fernet
-
+from translations import get_translations
 
 class PasswordViewer(QMainWindow):
     """Kaydedilmiş şifreleri görüntülemek için kullanılan pencere sınıfı"""
     def __init__(self, password_file_path, cipher):
         super().__init__()
-        self.setWindowTitle("Kayıtlı Şifreler")
+        
+         # Çevirileri yükle
+        self.tr = get_translations()
+        
+        self.setWindowTitle(self.tr['view_passwords_button'])
         self.setFixedSize(600, 400)
         
          # Şifre dosyasının yolu
@@ -30,7 +34,7 @@ class PasswordViewer(QMainWindow):
         # Arama alanı
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Şifre ismine göre ara...")
+        self.search_input.setPlaceholderText(self.tr['search_pass_placeholder'])
         self.search_input.textChanged.connect(self.filter_passwords)
         search_layout.addWidget(self.search_input)
         layout.addLayout(search_layout)
@@ -38,7 +42,7 @@ class PasswordViewer(QMainWindow):
         # Şifre tablosu
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Şifre İsmi", "Şifre", "Kopyala"])
+        self.table.setHorizontalHeaderLabels([self.tr["pass_name"], self.tr["pass"], self.tr["copy"]])
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
@@ -48,9 +52,9 @@ class PasswordViewer(QMainWindow):
         
         # Alt butonlar
         button_layout = QHBoxLayout()
-        refresh_button = QPushButton("Yenile")
+        refresh_button = QPushButton(self.tr["refresh"])
         refresh_button.clicked.connect(self.load_passwords)
-        delete_button = QPushButton("Seçili Şifreyi Sil")
+        delete_button = QPushButton(self.tr["selected_pass_remove"])
         delete_button.clicked.connect(self.delete_selected_password)
         button_layout.addWidget(refresh_button)
         button_layout.addWidget(delete_button)
@@ -64,7 +68,7 @@ class PasswordViewer(QMainWindow):
         try:
             self.table.setRowCount(0)
             self.table.setColumnCount(4)  # Bir sütun daha ekliyoruz
-            self.table.setHorizontalHeaderLabels(["Şifre İsmi", "Şifre", "", ""])
+            self.table.setHorizontalHeaderLabels([self.tr["pass_name"], self.tr["pass"], "", ""])
             
             # Sütun genişliklerini ayarla
             header = self.table.horizontalHeader()
@@ -152,7 +156,7 @@ class PasswordViewer(QMainWindow):
             # Özel mesaj kutusu oluştur
             msg = QMessageBox(self)
             msg.setWindowTitle(" ")  # Boş başlık
-            msg.setText("Şifre panoya kopyalandı!")
+            msg.setText(self.tr["selected_pass_copyed"])
             msg.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg.setIconPixmap(QPixmap("./assets/msg-box-icos/copy.png"))
             
@@ -204,8 +208,8 @@ class PasswordViewer(QMainWindow):
         """Seçili şifreyi siler."""
         current_row = self.table.currentRow()
         if current_row >= 0:
-            reply = QMessageBox.question(self, 'Silme Onayı', 
-                                       'Seçili şifreyi silmek istediğinize emin misiniz?',
+            reply = QMessageBox.question(self, self.tr["del_approv"], 
+                                       self.tr["del_approv_text"],
                                        QMessageBox.StandardButton.Yes |
                                        QMessageBox.StandardButton.No)
             
@@ -222,9 +226,9 @@ class PasswordViewer(QMainWindow):
                                 f.write(line)
                     # Tablodan satırı kaldır
                     self.table.removeRow(current_row)
-                    QMessageBox.information(self, "Başarılı", "Şifre silindi!")
+                    QMessageBox.information(self, self.tr["success"], self.tr["pass_deleted"])
         else:
-            QMessageBox.warning(self, "Uyarı", "Lütfen silmek istediğiniz şifreyi seçin.")
+            QMessageBox.warning(self, self.tr["success"], self.tr["please_select_delete_pass"])
  
 def resource_path(relative_path):
     """Kaynak dosyaların yolunu çözümler"""
@@ -237,12 +241,14 @@ def resource_path(relative_path):
 class PasswordGenerator(QMainWindow):
     def __init__(self):
         super().__init__()
-         
+         # Çevirileri yükle
+        self.tr = get_translations()
+        
         icon_path = resource_path(os.path.join('assets', 'pin-code.png'))
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
             
-        self.setWindowTitle("Otomatik Şifre Üretici")
+        self.setWindowTitle(self.tr['window_title'])
         self.setFixedSize(400, 400)
         
         # Ana widget ve layout oluşturma
@@ -251,35 +257,35 @@ class PasswordGenerator(QMainWindow):
         layout = QVBoxLayout(central_widget)
         
         # Şifre ismi için alan ekleme
-        self.password_name_label = QLabel("Şifre İsmi (Websitesi/Uygulama):")
+        self.password_name_label = QLabel(self.tr['password_name_label'])
         self.password_name_input = QLineEdit()
-        self.password_name_input.setPlaceholderText("Örnek: Gmail, Instagram, Netflix...")
+        self.password_name_input.setPlaceholderText(self.tr['password_name_placeholder'])
         
         # Diğer arayüz elemanlarını oluşturma
-        self.length_label = QLabel("Şifre Uzunluğu:")
+        self.length_label = QLabel(self.tr['length_label'])
         self.length_input = QLineEdit()
         
-        self.letter_label = QLabel("Harf Sayısı:")
+        self.letter_label = QLabel(self.tr['letter_label'])
         self.letter_input = QLineEdit()
         
-        self.number_label = QLabel("Rakam Sayısı (Opsiyonel):")
+        self.number_label = QLabel(self.tr['number_label'])
         self.number_input = QLineEdit()
         
-        self.special_char_label = QLabel("Özel Karakter Sayısı (Opsiyonel):")
+        self.special_char_label = QLabel(self.tr['special_char_label'])
         self.special_char_input = QLineEdit()
         
-        self.special_char_pool_label = QLabel("Özel Karakter Havuzu (Opsiyonel):")
+        self.special_char_pool_label = QLabel(self.tr['special_char_pool_label'])
         self.special_char_pool_input = QLineEdit()
         self.special_char_pool_input.setText("@#$%&*")
         
-        self.generate_button = QPushButton("Şifre Oluştur")
+        self.generate_button = QPushButton(self.tr['generate_button'])
         self.generate_button.clicked.connect(self.generate_password)
         
          # Şifre görüntüleme butonu
-        self.view_passwords_button = QPushButton("Kayıtlı Şifreleri Görüntüle")
+        self.view_passwords_button = QPushButton(self.tr['view_passwords_button'])
         self.view_passwords_button.clicked.connect(self.show_password_viewer)
         
-        self.result_label = QLabel("Oluşturulan Şifre: Henüz oluşturulmadı.")
+        self.result_label = QLabel(self.tr['result_label'])
         
         # Layout'a elemanları ekleme
         layout.addWidget(self.password_name_label)
@@ -394,9 +400,9 @@ class PasswordGenerator(QMainWindow):
             self.ask_to_save(password)
             
         except ValueError as e:
-            QMessageBox.warning(self, "Hata", str(e))
+            QMessageBox.warning(self, self.tr["error"], str(e))
         except Exception as e:
-            QMessageBox.warning(self, "Hata", "Lütfen geçerli sayısal değerler girin.")
+            QMessageBox.warning(self, self.tr["error"], self.tr["error_detail_1"])
     
     def setup_encryption_key(self):
         """Şifreleme için gerekli anahtarı oluşturur ve güvenli bir şekilde saklar."""
@@ -411,15 +417,15 @@ class PasswordGenerator(QMainWindow):
         # Şifre ismi boş ise uyarı ver
         password_name = self.password_name_input.text().strip()
         if not password_name:
-            reply = QMessageBox.question(self, 'Uyarı', 
-                                       'Şifre ismi girilmedi. Yine de kaydetmek ister misiniz?',
+            reply = QMessageBox.question(self, self.tr['warning'], 
+                                       self.tr['password_name_warning'],
                                        QMessageBox.StandardButton.Yes |
                                        QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.No:
                 return
         
-        reply = QMessageBox.question(self, 'Kaydet', 
-                                   'Şifreyi kaydetmek ister misiniz?',
+        reply = QMessageBox.question(self, self.tr['save'], 
+                                   self.tr['save_question'],
                                    QMessageBox.StandardButton.Yes |
                                    QMessageBox.StandardButton.No)
         
@@ -430,12 +436,12 @@ class PasswordGenerator(QMainWindow):
                     encrypted_password = self.cipher.encrypt(password.encode('utf-8'))
                     save_line = f"{password_name}:{encrypted_password.decode('utf-8')}\n" if password_name else f"Adsız:{encrypted_password.decode('utf-8')}\n"
                     f.write(save_line)
-                QMessageBox.information(self, "Başarılı", f"Şifre kaydedildi! 🎉\n\nKaydedilen dosya yolu:\n{self.password_file_path}")
+                QMessageBox.information(self, self.tr["success"], self.tr["save_success"])
                 print(f"Dosya yolu: {self.password_file_path}")
                 # Başarılı kayıttan sonra şifre ismi alanını temizle
                 self.password_name_input.clear()
             except Exception as e:
-                QMessageBox.warning(self, "Hata", f"Şifre kaydedilemedi: {str(e)}")
+                QMessageBox.warning(self, self.tr["error"], self.tr["save_error"])
 
 def main():
     app = QApplication(sys.argv)
